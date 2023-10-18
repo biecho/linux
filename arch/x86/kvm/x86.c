@@ -8754,6 +8754,47 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		vcpu->arch.complete_userspace_io = complete_hypercall_exit;
 		return 0;
 	}
+	case KVM_HC_READ_PHYS_ADDR: {
+		u64 hpa = a0;  // Assuming a0 contains the physical address
+		u64 value;
+
+		// Convert physical address to kernel virtual address
+		void *hva = phys_to_virt(hpa);
+
+		// Safely read from the address (assuming 8-byte read, adjust as needed)
+		value = *(u64 *)hva;
+
+		// Store the value to be sent back to the guest VM. 
+		// This could be in a register or some other VM accessible location.
+		kvm_rax_write(vcpu, value);
+
+		ret = 0; // Indicate success
+		break;
+	}
+	case KVM_HC_GPA_TO_HPA: {
+		gpa_t gpa = a0;  // Assume a0 from the guest contains the GPA
+		hpa_t hpa;
+		hva_t hva;
+
+		hva = kvm_vcpu_gfn_to_hva(vcpu, gpa_to_gfn(gpa));
+		if (kvm_is_error_hva(hva)) {
+			ret = -KVM_EINVAL;  // Indicate an invalid address or error
+			break;
+		}
+
+		hva += offset_in_page(gpa);
+
+		hpa = virt_to_phys((void *)hva);
+
+		// Return the translated HPA to the guest, for example using the RAX register.
+		kvm_rax_write(vcpu, hpa);
+
+		ret = 0;  // Indicate success
+		break;
+	}
+
+
+
 	default:
 		ret = -KVM_ENOSYS;
 		break;
