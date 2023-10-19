@@ -8761,11 +8761,8 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		// Convert physical address to kernel virtual address
 		void *hva = phys_to_virt(hpa);
 
-		// Safely read from the address (assuming 8-byte read, adjust as needed)
 		value = *(u64 *)hva;
 
-		// Store the value to be sent back to the guest VM. 
-		// This could be in a register or some other VM accessible location.
 		kvm_rax_write(vcpu, value);
 
 		return 0;
@@ -8776,16 +8773,16 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		hva_t hva;
 
 		hva = kvm_vcpu_gfn_to_hva(vcpu, gpa_to_gfn(gpa));
-		// if (kvm_is_error_hva(hva)) {
-		// 	ret = -KVM_EINVAL;  // Indicate an invalid address or error
-		// 	break;
-		// }
+		if (kvm_is_error_hva(hva)) {
+			ret = -EINVAL; 
+			break;
+		}
 
 		hva += offset_in_page(gpa);
 
 		hpa = virt_to_phys((void *)hva);
 
-		// Return the translated HPA to the guest, for example using the RAX register.
+		// Return the translated HPA to the guest
 		kvm_rax_write(vcpu, hpa);
 
 		return 0;
