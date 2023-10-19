@@ -8768,8 +8768,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		// This could be in a register or some other VM accessible location.
 		kvm_rax_write(vcpu, value);
 
-		ret = 0; // Indicate success
-		break;
+		return 0;
 	}
 	case KVM_HC_GPA_TO_HPA: {
 		gpa_t gpa = a0;  // Assume a0 from the guest contains the GPA
@@ -8789,8 +8788,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		// Return the translated HPA to the guest, for example using the RAX register.
 		kvm_rax_write(vcpu, hpa);
 
-		ret = 0;  // Indicate success
-		break;
+		return 0;
 	}
 
 
