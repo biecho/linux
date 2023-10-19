@@ -8776,10 +8776,10 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		hva_t hva;
 
 		hva = kvm_vcpu_gfn_to_hva(vcpu, gpa_to_gfn(gpa));
-		if (kvm_is_error_hva(hva)) {
-			ret = -KVM_EINVAL;  // Indicate an invalid address or error
-			break;
-		}
+		// if (kvm_is_error_hva(hva)) {
+		// 	ret = -KVM_EINVAL;  // Indicate an invalid address or error
+		// 	break;
+		// }
 
 		hva += offset_in_page(gpa);
 
