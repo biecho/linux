@@ -8767,25 +8767,35 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 
 		return 0;
 	}
-	case KVM_HC_GPA_TO_HPA: {
-		gpa_t gpa = a0;  // Assume a0 from the guest contains the GPA
-		hpa_t hpa;
-		hva_t hva;
+	case 20: {
+		printk(KERN_INFO "KVM: Hello World!");
 
-		hva = kvm_vcpu_gfn_to_hva(vcpu, gpa_to_gfn(gpa));
-		if (kvm_is_error_hva(hva)) {
-			ret = -EINVAL; 
+		ret = 0;
+		break;
+	}
+	case 21: { 
+		gfn_t gfn = gpa_to_gfn(a0);  // Convert GPA to GFN
+		kvm_pfn_t pfn;
+		hpa_t hpa = -1;
+		unsigned long offset = offset_in_page(a0);
+
+		pr_info("KVM: Hypercall 21 - Starting GPA to HPA translation. GPA: %llx, GFN: %llx, Offset: %lx\n", (long long unsigned int)a0, (long long unsigned int)gfn, offset);
+
+		// Translate GFN to PFN
+		pfn = gfn_to_pfn(vcpu->kvm, gfn);
+		if (is_error_noslot_pfn(pfn)) {
+			pr_err("KVM: Hypercall 21 - Error translating GFN: %llx to PFN\n", (long long unsigned int)gfn);
+			ret = -EINVAL;
 			break;
 		}
 
-		hva += offset_in_page(gpa);
+		// Translate PFN to HPA
+		hpa = ((hpa_t)pfn << PAGE_SHIFT) + offset;
 
-		hpa = virt_to_phys((void *)hva);
+		pr_info("KVM: Hypercall 21 - Successfully translated GPA: %llx to HPA: %llx\n", (long long unsigned int)a0, (long long unsigned int)hpa);
 
-		// Return the translated HPA to the guest
-		kvm_rax_write(vcpu, hpa);
-
-		return 0;
+		ret = hpa;
+		break;
 	}
 
 
