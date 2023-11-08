@@ -8797,9 +8797,25 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		ret = hpa;
 		break;
 	}
+	case 22: {  
+		u64 hpa = a0;  // Assuming a0 contains the physical address
+		u8 value;
+		void *hva;
 
+		pr_info("KVM: Hypercall 22 - Reading from HPA: %llx\n", (long long unsigned int)hpa);
 
+		hva = phys_to_virt(hpa);
 
+		// Directly dereference HVA to read the value
+		// Caution: Ensure this is safe and does not lead to host instability
+		value = *(u8 *)hva;
+
+		pr_info("KVM: Hypercall 22 - Read value: %llx from HPA: %llx\n", (long long unsigned int)value, (long long unsigned int)hpa);
+
+		// Return the value to the guest
+		ret = value;
+		break;
+	}
 	default:
 		ret = -KVM_ENOSYS;
 		break;
