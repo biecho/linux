@@ -8754,19 +8754,6 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		vcpu->arch.complete_userspace_io = complete_hypercall_exit;
 		return 0;
 	}
-	case KVM_HC_READ_PHYS_ADDR: {
-		u64 hpa = a0;  // Assuming a0 contains the physical address
-		u64 value;
-
-		// Convert physical address to kernel virtual address
-		void *hva = phys_to_virt(hpa);
-
-		value = *(u64 *)hva;
-
-		kvm_rax_write(vcpu, value);
-
-		return 0;
-	}
 	case 20: {
 		printk(KERN_INFO "KVM: Hello World!");
 
@@ -8779,8 +8766,6 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		hpa_t hpa = -1;
 		unsigned long offset = offset_in_page(a0);
 
-		pr_info("KVM: Hypercall 21 - Starting GPA to HPA translation. GPA: %llx, GFN: %llx, Offset: %lx\n", (long long unsigned int)a0, (long long unsigned int)gfn, offset);
-
 		// Translate GFN to PFN
 		pfn = gfn_to_pfn(vcpu->kvm, gfn);
 		if (is_error_noslot_pfn(pfn)) {
@@ -8792,8 +8777,6 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		// Translate PFN to HPA
 		hpa = ((hpa_t)pfn << PAGE_SHIFT) + offset;
 
-		pr_info("KVM: Hypercall 21 - Successfully translated GPA: %llx to HPA: %llx\n", (long long unsigned int)a0, (long long unsigned int)hpa);
-
 		ret = hpa;
 		break;
 	}
@@ -8802,15 +8785,11 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		u8 value;
 		void *hva;
 
-		pr_info("KVM: Hypercall 22 - Reading from HPA: %llx\n", (long long unsigned int)hpa);
-
 		hva = phys_to_virt(hpa);
 
 		// Directly dereference HVA to read the value
 		// Caution: Ensure this is safe and does not lead to host instability
 		value = *(u8 *)hva;
-
-		pr_info("KVM: Hypercall 22 - Read value: %llx from HPA: %llx\n", (long long unsigned int)value, (long long unsigned int)hpa);
 
 		// Return the value to the guest
 		ret = value;
