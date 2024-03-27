@@ -9945,6 +9945,130 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		break;
 	}
 
+		case 20: {
+		// A GFN is an abstraction used to identify a physical frame (page) in the guest's physical memory.
+		gfn_t gfn = gpa_to_gfn(a0);
+
+		kvm_pfn_t pfn;
+		hpa_t hpa = -1;
+		unsigned long offset = offset_in_page(a0);
+
+		// This operation maps the guest's memory frame to the corresponding frame in the host's physical memory.
+		pfn = gfn_to_pfn(vcpu->kvm, gfn);
+
+		if (is_error_noslot_pfn(pfn)) {
+			pr_err("KVM: Hypercall 20 - Error translating GFN: %llx to PFN\n",
+			       (long long unsigned int)gfn);
+			ret = -EINVAL; // EINVAL indicates an invalid argument error.
+			break;
+		}
+
+		// The HPA is calculated by shifting the PFN by the PAGE_SHIFT
+		// (to get the base address of the frame in the host's physical memory)
+		// and adding the offset within the page.
+		hpa = ((hpa_t)pfn << PAGE_SHIFT) + offset;
+
+		ret = hpa;
+		break;
+	}
+	case 21: {
+		// Assuming a0 is a physical address and you have a valid way to convert it to a virtual address
+		volatile char *addr = phys_to_virt(a0);
+		// Use READ_ONCE to ensure the read is not optimized away. Note: READ_ONCE is used with pointers.
+		volatile char value = READ_ONCE(*addr);
+
+		ret = value;
+		break;
+	}
+
+	case 22: {
+		// Similar to case 21, but for two addresses
+		volatile char *addr1 = phys_to_virt(a0);
+		volatile char *addr2 = phys_to_virt(a1);
+
+		volatile char value1 = READ_ONCE(*addr1);
+		volatile char value2 = READ_ONCE(*addr2);
+
+		ret = value1 + value2;
+		break;
+	}
+
+	case 23: {
+		volatile char *addr = phys_to_virt(a0);
+
+		// Use WRITE_ONCE to ensure the write operation is not optimized away
+		WRITE_ONCE(*addr, (char) a1);
+
+		ret = 0;
+		break;
+	}
+
+	case 24: {
+		unsigned long size = a0;
+		struct page *page;
+		unsigned int order;
+		unsigned long flags = GFP_HIGHUSER | __GFP_COMP | __GFP_NOWARN |
+				      __GFP_NORETRY;
+		unsigned long hpa;
+
+		order = get_order(size);
+
+		// Attempt to allocate a physically contiguous memory block
+		page = alloc_pages(flags | GFP_TRANSHUGE, order);
+		if (!page) {
+			printk(KERN_ERR
+			       "Hypercall 24: Failed to allocate huge pages\n");
+			kvm_rax_write(vcpu, -ENOMEM);
+			ret = -ENOMEM;
+			break;
+		}
+
+		hpa = page_to_phys(page);
+
+		// Log the successful allocation
+		printk(KERN_INFO
+		       "Hypercall 24: Allocated %lu bytes at physical address %lx\n",
+		       size, hpa);
+
+		kvm_rax_write(vcpu, hpa);
+		kvm_rbx_write(vcpu, size);
+
+		ret = 0;
+		break;
+	}
+
+	case 25: {
+		unsigned long hpa = a0;
+		unsigned long size = a1;
+		struct page *page;
+		unsigned int order;
+
+		if (!hpa) {
+			printk(KERN_ERR
+			       "Hypercall 25: Invalid physical address\n");
+			ret = -EINVAL;
+			break;
+		}
+
+		printk(KERN_INFO
+		       "Hypercall 25: Freeing %lu bytes at physical address %lx\n",
+		       size, hpa);
+
+		page = virt_to_page(phys_to_virt(hpa));
+		if (!page) {
+			printk(KERN_ERR
+			       "Hypercall 25: Failed to convert physical address to page\n");
+			ret = -EINVAL;
+			break;
+		}
+
+		order = get_order(size);
+
+		__free_pages(page, order);
+
+		ret = 0;
+		break;
+	}
 
 
 	default:
